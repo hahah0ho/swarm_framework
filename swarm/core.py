@@ -3,6 +3,8 @@ import copy
 import json
 from collections import defaultdict
 from typing import List, Callable, Union
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 # Package/library imports
 from openai import OpenAI
@@ -290,3 +292,52 @@ class Swarm:
             agent=active_agent,
             context_variables=context_variables,
         )
+        
+        
+    def run_parallel_agents(
+        self,
+        agents: List[Agent],
+        messages: List,
+        context_variables: dict = {},
+        model_override: str = None,
+        debug: bool = False,
+    ) -> List[Response]:
+        """
+        여러 에이전트를 병렬로 실행하여 각각의 결과를 반환.
+
+        Args:
+            agents (List[Agent]): 병렬로 실행할 에이전트 리스트.
+            messages (List): 에이전트에 전달할 메시지 히스토리.
+            context_variables (dict): 공유 컨텍스트 변수.
+            model_override (str): 모델 이름을 오버라이드할 옵션.
+            debug (bool): 디버그 모드 활성화 여부.
+
+        Returns:
+            List[Response]: 각 에이전트 실행 결과 리스트.
+        """
+        results = []
+        with ThreadPoolExecutor() as executor:
+            # 에이전트별 Future를 생성
+            future_to_agent = {
+                executor.submit(
+                    self.run,  # 기존의 단일 실행 메서드를 호출
+                    agent,
+                    messages,
+                    context_variables.copy(),
+                    model_override,
+                    False,  # stream 비활성화
+                    debug,
+                ): agent
+                for agent in agents
+            }
+
+            for future in as_completed(future_to_agent):
+                agent = future_to_agent[future]
+                try:
+                    response = future.result()
+                    results.append(response)
+                    debug_print(debug, f"Agent {agent.name} completed successfully.")
+                except Exception as e:
+                    debug_print(debug, f"Agent {agent.name} failed with error: {e}")
+
+        return results
