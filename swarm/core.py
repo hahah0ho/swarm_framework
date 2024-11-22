@@ -4,6 +4,7 @@ import json
 from collections import defaultdict
 from typing import List, Callable, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
 from transitions import Machine
 
 # Package/library imports
@@ -30,6 +31,7 @@ class Swarm:
         if not client:
             client = OpenAI()
         self.client = client
+        self.task_results = []
 
     def get_chat_completion(
         self,
@@ -294,50 +296,89 @@ class Swarm:
         )
         
         
+    # def run_parallel_agents(
+    #     self,
+    #     agents: List[Agent],
+    #     messages: List,
+    #     context_variables: dict = {},
+    #     model_override: str = None,
+    #     debug: bool = False,
+    # ) -> List[Response]:
+    #     """
+    #     여러 에이전트를 병렬로 실행하여 각각의 결과를 반환.
+
+    #     Args:
+    #         agents (List[Agent]): 병렬로 실행할 에이전트 리스트.
+    #         messages (List): 에이전트에 전달할 메시지 히스토리.
+    #         context_variables (dict): 공유 컨텍스트 변수.
+    #         model_override (str): 모델 이름을 오버라이드할 옵션.
+    #         debug (bool): 디버그 모드 활성화 여부.
+
+    #     Returns:
+    #         List[Response]: 각 에이전트 실행 결과 리스트.
+    #     """
+    #     results = []
+    #     with ThreadPoolExecutor() as executor:
+    #         # 에이전트별 Future를 생성
+    #         future_to_agent = {
+    #             executor.submit(
+    #                 self.run,  # 기존의 단일 실행 메서드를 호출
+    #                 agent,
+    #                 messages,
+    #                 context_variables.copy(),
+    #                 model_override,
+    #                 False,  # stream 비활성화
+    #                 debug,
+    #             ): agent
+    #             for agent in agents
+    #         }
+
+    #         for future in as_completed(future_to_agent):
+    #             agent = future_to_agent[future]
+    #             try:
+    #                 response = future.result()
+    #                 results.append(response)
+    #                 debug_print(debug, f"Agent {agent.name} completed successfully.")
+    #             except Exception as e:
+    #                 debug_print(debug, f"Agent {agent.name} failed with error: {e}")
+
+    #     return results
+
     def run_parallel_agents(
         self,
         agents: List[Agent],
-        messages: List,
-        context_variables: dict = {},
-        model_override: str = None,
-        debug: bool = False,
-    ) -> List[Response]:
+        handler: Callable,  # 에이전트 작업 핸들러
+        *args,
+        **kwargs,
+    ) -> List[dict]:
         """
-        여러 에이전트를 병렬로 실행하여 각각의 결과를 반환.
+        여러 에이전트를 병렬로 실행하며 상태를 추적.
 
         Args:
-            agents (List[Agent]): 병렬로 실행할 에이전트 리스트.
-            messages (List): 에이전트에 전달할 메시지 히스토리.
-            context_variables (dict): 공유 컨텍스트 변수.
-            model_override (str): 모델 이름을 오버라이드할 옵션.
-            debug (bool): 디버그 모드 활성화 여부.
+            agents (List[Agent]): 실행할 에이전트 리스트.
+            handler (Callable): 에이전트 작업을 처리할 핸들러 함수.
+            *args, **kwargs: 핸들러에 전달할 추가 인자.
 
         Returns:
-            List[Response]: 각 에이전트 실행 결과 리스트.
+            List[dict]: 에이전트 실행 결과 리스트.
         """
         results = []
         with ThreadPoolExecutor() as executor:
-            # 에이전트별 Future를 생성
+            # 에이전트별 Future 생성
             future_to_agent = {
-                executor.submit(
-                    self.run,  # 기존의 단일 실행 메서드를 호출
-                    agent,
-                    messages,
-                    context_variables.copy(),
-                    model_override,
-                    False,  # stream 비활성화
-                    debug,
-                ): agent
+                executor.submit(asyncio.run, agent.run_task(handler, *args, **kwargs)): agent
                 for agent in agents
             }
 
             for future in as_completed(future_to_agent):
                 agent = future_to_agent[future]
                 try:
-                    response = future.result()
-                    results.append(response)
-                    debug_print(debug, f"Agent {agent.name} completed successfully.")
+                    result = future.result()
+                    results.append({"agent": agent.name, **result})
+                    print(f"[Swarm] Agent {agent.name} completed with state: {agent.state}.")
                 except Exception as e:
-                    debug_print(debug, f"Agent {agent.name} failed with error: {e}")
+                    results.append({"agent": agent.name, "state": "Failed", "error": str(e)})
+                    print(f"[Swarm] Agent {agent.name} failed with error: {e}.")
 
+        self.task_results = results
         return results

@@ -21,11 +21,15 @@ class Agent(BaseModel):
     parallel_tool_calls: bool = True
 
     # 상태 관리 추가
-    def model_post_init(self, **kwargs):
-        self.result = None  # 작업 결과 저장
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-        # 상태 정의 및 상태 머신 초기화
+        # 상태 정의 및 초기화
         self.states = ["Idle", "Running", "Completed", "Failed"]
+        self.result = None  # 작업 결과 저장
+        self.error = None  # 작업 중 발생한 에러 저장
+
+        # 상태 머신 초기화
         self.machine = Machine(model=self, states=self.states, initial="Idle")
         self.machine.add_transition("start_task", "Idle", "Running")
         self.machine.add_transition("complete_task", "Running", "Completed")
@@ -33,7 +37,9 @@ class Agent(BaseModel):
         self.machine.add_transition("reset_task", ["Completed", "Failed"], "Idle")
 
     def reset(self):
-        """상태 초기화"""
+        """상태 초기화."""
+        self.result = None
+        self.error = None
         self.reset_task()
 
     async def run_task(self, handler: Callable, *args, **kwargs):
@@ -48,24 +54,24 @@ class Agent(BaseModel):
             dict: 작업 결과.
         """
         try:
-            # 작업 시작
+            # 상태: Idle → Running
             self.start_task()
-            print(f"[{self.name}] Task started.")
+            print(f"[Agent {self.name}] Task started.")
 
-            # 작업 실행 (핸들러 함수 호출)
+            # 작업 실행 (핸들러 호출)
             self.result = await handler(*args, **kwargs)
 
-            # 작업 완료
+            # 상태: Running → Completed
             self.complete_task()
-            print(f"[{self.name}] Task completed successfully.")
-
+            print(f"[Agent {self.name}] Task completed successfully.")
             return {"state": self.state, "result": self.result}
-        
+
         except Exception as e:
-            # 작업 실패
+            # 상태: Running → Failed
+            self.error = str(e)
             self.fail_task()
-            print(f"[{self.name}] Task failed with error: {e}")
-            return {"state": self.state, "error": str(e)}
+            print(f"[Agent {self.name}] Task failed with error: {self.error}")
+            return {"state": self.state, "error": self.error}
     
         
 class Response(BaseModel):
