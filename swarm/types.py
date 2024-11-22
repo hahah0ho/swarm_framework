@@ -21,8 +21,7 @@ class Agent(BaseModel):
     parallel_tool_calls: bool = True
 
     # 상태 관리 추가
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def model_post_init(self, **kwargs):
         self.result = None  # 작업 결과 저장
 
         # 상태 정의 및 상태 머신 초기화
