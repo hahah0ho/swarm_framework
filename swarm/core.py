@@ -4,7 +4,7 @@ import json
 from collections import defaultdict
 from typing import List, Callable, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+from transitions import Machine
 
 # Package/library imports
 from openai import OpenAI
