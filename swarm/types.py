@@ -7,7 +7,7 @@ from transitions import Machine
 from typing import List, Callable, Union, Optional
 
 # Third-party imports
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 AgentFunction = Callable[[], Union[str, "Agent", dict]]
 
@@ -20,15 +20,14 @@ class Agent(BaseModel):
     tool_choice: str = None
     parallel_tool_calls: bool = True
 
-    # 상태 관리 추가
+    # 새로 추가된 속성들을 pydantic 필드로 선언
+    result: Optional[dict] = Field(default=None, exclude=True)
+    error: Optional[str] = Field(default=None, exclude=True)
+    states: List[str] = Field(default=["Idle", "Running", "Completed", "Failed"], exclude=True)
+    machine: Optional[Machine] = Field(default=None, exclude=True)
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-        # 상태 정의 및 초기화
-        self.states = ["Idle", "Running", "Completed", "Failed"]
-        self.result = None  # 작업 결과 저장
-        self.error = None  # 작업 중 발생한 에러 저장
-
         # 상태 머신 초기화
         self.machine = Machine(model=self, states=self.states, initial="Idle")
         self.machine.add_transition("start_task", "Idle", "Running")
