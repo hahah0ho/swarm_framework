@@ -23,13 +23,14 @@ class Agent(BaseModel):
     # 새로 추가된 속성들을 pydantic 필드로 선언
     result: Optional[dict] = Field(default=None, exclude=True)
     error: Optional[str] = Field(default=None, exclude=True)
-    states: List[str] = Field(default=["Idle", "Running", "Completed", "Failed"], exclude=True)
     machine: Optional[Machine] = Field(default=None, exclude=True)
 
     def __init__(self, **kwargs):
+        # 상태 리스트를 필드로 설정하지 않고 초기화 중에 직접 정의
+        object.__setattr__(self, "states", ["Idle", "Running", "Completed", "Failed"])
         super().__init__(**kwargs)
         # 상태 머신 초기화
-        self.machine = Machine(model=self, states=self.states, initial="Idle")
+        object.__setattr__(self, "machine", Machine(model=self, states=self.states, initial="Idle"))
         self.machine.add_transition("start_task", "Idle", "Running")
         self.machine.add_transition("complete_task", "Running", "Completed")
         self.machine.add_transition("fail_task", "Running", "Failed")
