@@ -393,7 +393,7 @@ class CentralOrchestrator:
         self.agent_results[agent.name] = result  # 외부 데이터 구조에 결과 저장
         print(f"[Orchestrator] Agent {agent.name} state updated to {state}.")
         if result:
-            print(f"[Orchestrator] Agent {agent.name} result: {result}")
+            print(f"[Orchestrator] Agent {agent.name} result: {result[-1]["content"]}")
 
     def execute_workflow(self, workflow: List[Dict], agents: List[Agent], messages: List):
         """
