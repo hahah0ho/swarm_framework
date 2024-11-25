@@ -3,7 +3,6 @@ from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
 )
-from transitions import Machine
 from typing import List, Callable, Union, Optional
 
 # Third-party imports
