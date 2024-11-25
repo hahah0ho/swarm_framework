@@ -231,7 +231,79 @@ class Swarm:
                 context_variables=context_variables,
             )
         }
+        
+    def initialize_agent_state(self, agents: List[Agent]):
+        """에이전트 상태를 초기화."""
+        self.agent_states = {agent.name: "Idle" for agent in agents}
 
+    def update_agent_state(self, agent: Agent, state: str):
+        """에이전트 상태 업데이트."""
+        self.agent_states[agent.name] = state
+        print(f"[Swarm] Agent {agent.name} state updated to {state}.")
+
+    # def run(
+    #     self,
+    #     agent: Agent,
+    #     messages: List,
+    #     context_variables: dict = {},
+    #     model_override: str = None,
+    #     stream: bool = False,
+    #     debug: bool = False,
+    #     max_turns: int = float("inf"),
+    #     execute_tools: bool = True,
+    # ) -> Response:
+    #     if stream:
+    #         return self.run_and_stream(
+    #             agent=agent,
+    #             messages=messages,
+    #             context_variables=context_variables,
+    #             model_override=model_override,
+    #             debug=debug,
+    #             max_turns=max_turns,
+    #             execute_tools=execute_tools,
+    #         )
+    #     active_agent = agent
+    #     context_variables = copy.deepcopy(context_variables)
+    #     history = copy.deepcopy(messages)
+    #     init_len = len(messages)
+
+    #     while len(history) - init_len < max_turns and active_agent:
+
+    #         # get completion with current history, agent
+    #         completion = self.get_chat_completion(
+    #             agent=active_agent,
+    #             history=history,
+    #             context_variables=context_variables,
+    #             model_override=model_override,
+    #             stream=stream,
+    #             debug=debug,
+    #         )
+    #         message = completion.choices[0].message
+    #         debug_print(debug, "Received completion:", message)
+    #         message.sender = active_agent.name
+    #         history.append(
+    #             json.loads(message.model_dump_json())
+    #         )  # to avoid OpenAI types (?)
+
+    #         if not message.tool_calls or not execute_tools:
+    #             debug_print(debug, "Ending turn.")
+    #             break
+
+    #         # handle function calls, updating context_variables, and switching agents
+    #         partial_response = self.handle_tool_calls(
+    #             message.tool_calls, active_agent.functions, context_variables, debug
+    #         )
+    #         history.extend(partial_response.messages)
+    #         context_variables.update(partial_response.context_variables)
+    #         if partial_response.agent:
+    #             active_agent = partial_response.agent
+
+    #     return Response(
+    #         messages=history[init_len:],
+    #         agent=active_agent,
+    #         context_variables=context_variables,
+    #     )
+    
     def run(
         self,
         agent: Agent,
@@ -243,57 +315,58 @@ class Swarm:
         max_turns: int = float("inf"),
         execute_tools: bool = True,
     ) -> Response:
-        if stream:
-            return self.run_and_stream(
-                agent=agent,
-                messages=messages,
-                context_variables=context_variables,
-                model_override=model_override,
-                debug=debug,
-                max_turns=max_turns,
-                execute_tools=execute_tools,
-            )
-        active_agent = agent
-        context_variables = copy.deepcopy(context_variables)
-        history = copy.deepcopy(messages)
-        init_len = len(messages)
+        try:
+            # 에이전트 상태를 Running으로 업데이트
+            self.update_agent_state(agent, "Running")
 
-        while len(history) - init_len < max_turns and active_agent:
+            active_agent = agent
+            context_variables = copy.deepcopy(context_variables)
+            history = copy.deepcopy(messages)
+            init_len = len(messages)
 
-            # get completion with current history, agent
-            completion = self.get_chat_completion(
+            while len(history) - init_len < max_turns and active_agent:
+                # get completion with current history, agent
+                completion = self.get_chat_completion(
+                    agent=active_agent,
+                    history=history,
+                    context_variables=context_variables,
+                    model_override=model_override,
+                    stream=stream,
+                    debug=debug,
+                )
+                message = completion.choices[0].message
+                debug_print(debug, "Received completion:", message)
+                message.sender = active_agent.name
+                history.append(
+                    json.loads(message.model_dump_json())
+                )  # to avoid OpenAI types (?)
+
+                if not message.tool_calls or not execute_tools:
+                    debug_print(debug, "Ending turn.")
+                    break
+
+                # handle function calls, updating context_variables, and switching agents
+                partial_response = self.handle_tool_calls(
+                    message.tool_calls, active_agent.functions, context_variables, debug
+                )
+                history.extend(partial_response.messages)
+                context_variables.update(partial_response.context_variables)
+                if partial_response.agent:
+                    active_agent = partial_response.agent
+
+            # 작업이 성공적으로 완료되었으므로 상태를 Completed로 업데이트
+            self.update_agent_state(agent, "Completed")
+            return Response(
+                messages=history[init_len:],
                 agent=active_agent,
-                history=history,
                 context_variables=context_variables,
-                model_override=model_override,
-                stream=stream,
-                debug=debug,
             )
-            message = completion.choices[0].message
-            debug_print(debug, "Received completion:", message)
-            message.sender = active_agent.name
-            history.append(
-                json.loads(message.model_dump_json())
-            )  # to avoid OpenAI types (?)
 
-            if not message.tool_calls or not execute_tools:
-                debug_print(debug, "Ending turn.")
-                break
-
-            # handle function calls, updating context_variables, and switching agents
-            partial_response = self.handle_tool_calls(
-                message.tool_calls, active_agent.functions, context_variables, debug
-            )
-            history.extend(partial_response.messages)
-            context_variables.update(partial_response.context_variables)
-            if partial_response.agent:
-                active_agent = partial_response.agent
-
-        return Response(
-            messages=history[init_len:],
-            agent=active_agent,
-            context_variables=context_variables,
-        )
+        except Exception as e:
+            # 작업 중 실패 시 상태를 Failed로 업데이트
+            self.update_agent_state(agent, "Failed")
+            debug_print(debug, f"Agent {agent.name} failed with error: {e}")
+            raise e
         
         
     # def run_parallel_agents(
@@ -343,42 +416,54 @@ class Swarm:
     #                 debug_print(debug, f"Agent {agent.name} failed with error: {e}")
 
     #     return results
-
+    
     def run_parallel_agents(
         self,
         agents: List[Agent],
-        handler: Callable,  # 에이전트 작업 핸들러
-        *args,
-        **kwargs,
-    ) -> List[dict]:
+        messages: List,
+        context_variables: dict = {},
+        model_override: str = None,
+        debug: bool = False,
+    ) -> List[Response]:
         """
         여러 에이전트를 병렬로 실행하며 상태를 추적.
 
         Args:
-            agents (List[Agent]): 실행할 에이전트 리스트.
-            handler (Callable): 에이전트 작업을 처리할 핸들러 함수.
-            *args, **kwargs: 핸들러에 전달할 추가 인자.
+            agents (List[Agent]): 병렬로 실행할 에이전트 리스트.
+            messages (List): 에이전트에 전달할 메시지 히스토리.
+            context_variables (dict): 공유 컨텍스트 변수.
+            model_override (str): 모델 이름을 오버라이드할 옵션.
+            debug (bool): 디버그 모드 활성화 여부.
 
         Returns:
-            List[dict]: 에이전트 실행 결과 리스트.
+            List[Response]: 각 에이전트 실행 결과 리스트.
         """
+        # 상태 초기화
+        self.initialize_agent_state(agents)
+
         results = []
         with ThreadPoolExecutor() as executor:
             # 에이전트별 Future 생성
             future_to_agent = {
-                executor.submit(asyncio.run, agent.run_task(handler, *args, **kwargs)): agent
+                executor.submit(
+                    self.run,  # 기존의 단일 실행 메서드를 호출
+                    agent,
+                    messages,
+                    context_variables.copy(),
+                    model_override,
+                    False,  # stream 비활성화
+                    debug,
+                ): agent
                 for agent in agents
             }
 
             for future in as_completed(future_to_agent):
                 agent = future_to_agent[future]
                 try:
-                    result = future.result()
-                    results.append({"agent": agent.name, **result})
-                    print(f"[Swarm] Agent {agent.name} completed with state: {agent.state}.")
+                    response = future.result()
+                    results.append(response)
+                    debug_print(debug, f"Agent {agent.name} completed successfully.")
                 except Exception as e:
-                    results.append({"agent": agent.name, "state": "Failed", "error": str(e)})
-                    print(f"[Swarm] Agent {agent.name} failed with error: {e}.")
+                    debug_print(debug, f"Agent {agent.name} failed with error: {e}")
 
-        self.task_results = results
         return results
