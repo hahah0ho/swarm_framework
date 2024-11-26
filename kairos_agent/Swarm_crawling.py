@@ -4,7 +4,7 @@ import json
 import time
 import chromedriver_autoinstaller
 
-def crawl_page_to_json(url, output_file="crawled_data.json"):
+def crawl_page_to_json(url):
     """
     주어진 URL의 내용을 크롤링하여 JSON 파일로 저장하는 함수.
 
