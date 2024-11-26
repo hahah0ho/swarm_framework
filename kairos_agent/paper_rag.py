@@ -3,7 +3,11 @@ from pinecone import Pinecone
 from typing import List, Dict
 
 
-def process_query(client, index, query: str, top_k: int = 10, min_score: float = 0.001) -> str:
+def process_query(openai_api_key: str, pinecone_api_key: str, pinecone_index: str,query: str, top_k: int = 10, min_score: float = 0.001) -> str:
+    client = OpenAI(api_key=openai_api_key)
+    pc = Pinecone(api_key=pinecone_api_key)
+    index = pc.Index(pinecone_index)
+    
     """
     주어진 쿼리에 대해 전체 작업 흐름을 실행합니다.
 
