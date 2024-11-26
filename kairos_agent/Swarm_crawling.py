@@ -41,16 +41,12 @@ def crawl_page_to_json(url, output_file="crawled_data.json"):
             "content": page_content
         }
 
-        # JSON 파일로 저장
-        with open(output_file, "w", encoding="utf-8") as json_file:
-            json.dump(data, json_file, ensure_ascii=False, indent=4)
-
-        print(f"크롤링 완료: {output_file}")
-        return output_file
+        print(f"크롤링 완료: {url}")
+        return data
 
     except Exception as e:
         print(f"Error occurred: {e}")
-        return None
+        return {"error": str(e)}
 
     finally:
         # 드라이버 종료
