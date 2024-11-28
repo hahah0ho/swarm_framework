@@ -394,6 +394,33 @@ class CentralOrchestrator:
         print(f"[Orchestrator] Agent {agent.name} state updated to {state}.")
         if result:
             print(f"[Orchestrator] Agent {agent.name} result: {result.messages[-1]['content']}")
+            
+    def get_user_feedback(self, step_name: str):
+        """
+        사용자로부터 다음 스텝 진행 여부와 피드백을 입력받습니다.
+
+        Args:
+            step_name (str): 현재 스텝 이름.
+
+        Returns:
+            str: 'next' 또는 'retry'.
+        """
+        while True:
+            print(f"\n[Orchestrator] Step '{step_name}' completed.")
+            print("Options:")
+            print("1. Proceed to the next step.")
+            print("2. Retry the current step with feedback.")
+            user_input = input("Enter your choice (1 or 2): ").strip()
+
+            if user_input == "1":
+                return "next"
+            elif user_input == "2":
+                feedback = input("Enter your feedback for retrying this step: ").strip()
+                print(f"[Orchestrator] Received feedback: {feedback}")
+                self.agent_results["feedback"] = feedback  # 저장 (필요시 추가 활용)
+                return "retry"
+            else:
+                print("[Orchestrator] Invalid input. Please enter 1 or 2.")
 
     def execute_workflow(self, workflow: List[Dict], agents: List[Agent], messages: List):
         """
@@ -411,34 +438,112 @@ class CentralOrchestrator:
         for step in workflow:
             step_name = step["name"]
             dependent_on = step.get("dependent_on", [])
-            print(f"[Workflow] Executing step: {step_name}")
+            step_messages = [{"role":"user", "content":step["description"]}]
+            messages = step_messages
+            while True:
 
-            # 의존성이 있는 경우, 해당 에이전트들의 결과를 context_variables에 병합
-            if dependent_on:
-                print(f"[Workflow] Step {step_name} depends on: {dependent_on}")
-                dependent_results = {
-                    agent_name: self.agent_results[agent_name]
-                    for agent_name in dependent_on
-                    if agent_name in self.agent_results
-                }
-                # 의존성 결과를 context_variables에 추가
-                context_variables = {"dependent_results": dependent_results}
-            else:
-                context_variables = {}
+                print(f"[Workflow] Executing step: {step_name}")
 
-            # 현재 스텝에 해당하는 에이전트 선택
-            step_agents = [agent for agent in agents if agent.name in step["agents"]]
+                # 의존성이 있는 경우, 해당 에이전트들의 결과를 context_variables에 병합
+                if dependent_on:
+                    print(f"[Workflow] Step {step_name} depends on: {dependent_on}")
+                    dependent_results = {
+                        agent_name: self.agent_results[agent_name]
+                        for agent_name in dependent_on
+                        if agent_name in self.agent_results
+                    }
+                    # 의존성 결과를 context_variables에 추가
+                    context_variables = {"dependent_results": dependent_results}
+                else:
+                    context_variables = {}
 
-            # 에이전트 병렬 실행 및 결과 수집
-            results = self.swarm.run_parallel_agents(
-                step_agents,
-                messages,
-                context_variables  # 의존성 결과를 전달
-            )
+                # 현재 스텝에 해당하는 에이전트 선택
+                step_agents = [agent for agent in agents if agent.name in step["agents"]]
 
-            # 에이전트 상태 및 결과 업데이트
-            for result, agent in zip(results, step_agents):
-                state = "Completed" if result.messages else "Failed"
-                self.update_agent_state_and_result(agent, state, result)
+                # 에이전트 병렬 실행 및 결과 수집
+                results = self.swarm.run_parallel_agents(
+                    step_agents,
+                    messages,
+                    context_variables  # 의존성 결과를 전달
+                )
+
+                # 에이전트 상태 및 결과 업데이트
+                for result, agent in zip(results, step_agents):
+                    state = "Completed" if result.messages else "Failed"
+                    self.update_agent_state_and_result(agent, state, result)
+                        
+                # 사용자 입력 처리
+                user_decision = self.get_user_feedback(step_name)
+                if user_decision == "retry":
+                    print(f"[Orchestrator] Retrying step: {step_name}")
+                    feedback = self.agent_results.get("feedback", "No feedback provided.")
+                    step_description = step.get("description", "No description provided.")
+                    messages.append({"role": "user","content": f"{step_description}\nFeedback: {feedback}"})
+                    continue  # 현재 스텝 다시 실행
+                elif user_decision == "next":
+                    print(f"[Orchestrator] Proceeding to the next step.")
+                    break
 
         print("[Orchestrator] Workflow execution completed.")
+
+    # def execute_workflow(self, workflow: List[Dict], agents: List[Agent], messages: List):
+    #     """
+    #     워크플로우를 실행하며 상태 및 결과를 관리.
+    #     이전 스텝의 결과를 다음 스텝으로 전달.
+
+    #     Args:
+    #         workflow (List[Dict]): 작업 단계와 종속성을 정의한 워크플로우.
+    #         agents (List[Agent]): 실행할 에이전트 목록.
+    #         messages (List): 초기 메시지.
+    #     """
+    #     # 초기 상태 설정
+    #     self.initialize_states(agents)
+
+    #     for step in workflow:
+    #         step_name = step["name"]
+    #         dependent_on = step.get("dependent_on", [])
+    #         messages = [{"user":step["description"]}]
+    #         while True:
+    #             print(f"[Workflow] Executing step: {step_name}")
+                
+    #             # 의존성이 있는 경우, 해당 에이전트들의 결과를 context_variables에 병합
+    #             if dependent_on:
+    #                 print(f"[Workflow] Step {step_name} depends on: {dependent_on}")
+    #                 dependent_results = {
+    #                     agent_name: self.agent_results[agent_name]
+    #                     for agent_name in dependent_on
+    #                     if agent_name in self.agent_results
+    #                 }
+    #                 # 의존성 결과를 context_variables에 추가
+    #                 context_variables = {"dependent_results": dependent_results}
+    #             else:
+    #                 context_variables = {}
+
+    #             # 현재 스텝에 해당하는 에이전트 선택
+    #             step_agents = [agent for agent in agents if agent.name in step["agents"]]
+
+    #             # 에이전트 병렬 실행 및 결과 수집
+    #             results = self.swarm.run_parallel_agents(
+    #                 step_agents,
+    #                 messages,
+    #                 context_variables  # 의존성 결과를 전달
+    #             )
+
+    #             # 에이전트 상태 및 결과 업데이트
+    #             for result, agent in zip(results, step_agents):
+    #                 state = "Completed" if result.messages else "Failed"
+    #                 self.update_agent_state_and_result(agent, state, result)
+
+    #             # 사용자 입력 처리
+    #             user_decision = self.get_user_feedback(step_name)
+    #             if user_decision == "retry":
+    #                 print(f"[Orchestrator] Retrying step: {step_name}")
+    #                 feedback = self.agent_results.get("feedback", "No feedback provided.")
+    #                 step_description = step.get("description", "No description provided.")
+    #                 messages.append({"role": "user","content": f"{step_description}\nFeedback: {feedback}"})
+    #                 continue  # 현재 스텝 다시 실행
+    #             elif user_decision == "next":
+    #                 print(f"[Orchestrator] Proceeding to the next step.")
+    #                 break
+
+    #     print("[Orchestrator] Workflow execution completed.")
