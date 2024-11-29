@@ -3,6 +3,9 @@ from tavily_search import search_on_web as Search
 from custom_swarm import Swarm, Agent, CentralOrchestrator
 import json
 import os
+import streamlit as st
+import subprocess
+
 
 refine_prompt = """You are a highly skilled data refinement agent. Your primary task is to getting data by using functions and clean, preprocess, and refine raw data by removing noise, irrelevant information, and inconsistencies while maintaining the core integrity of the content. Ensure the refined data is structured, clear, and ready for further processing or analysis.
 Given data: prev_data(by using get_prev_data function), search_data(by using get_search_data function)
@@ -24,6 +27,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 client = Swarm()
 agent_results = {}
+
 
 #로그데이터 출력 함수
 def format_logs(log_data):
