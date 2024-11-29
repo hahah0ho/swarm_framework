@@ -380,7 +380,7 @@ class CentralOrchestrator:
         self.swarm.initialize_agent_state(agents)
         self.agent_states = self.swarm.agent_states
 
-    def update_agent_state_and_result(self, agent: Agent, state: str, result: Any = None):
+    def update_agent_state_and_result(self, agent_name: str, state: str, result: Any = None):
         """
         에이전트 상태와 결과를 업데이트.
 
@@ -389,11 +389,11 @@ class CentralOrchestrator:
             state (str): 에이전트의 새로운 상태.
             result (Any): 에이전트 작업 결과 또는 에러 메시지.
         """
-        self.agent_states[agent.name] = state
-        self.agent_results[agent.name] = result  # 외부 데이터 구조에 결과 저장
-        print(f"[Orchestrator] Agent {agent.name} state updated to {state}.")
+        self.agent_states[agent_name] = state
+        self.agent_results[agent_name] = result  # 외부 데이터 구조에 결과 저장
+        print(f"[Orchestrator] Agent {agent_name} state updated to {state}.")
         if result:
-            print(f"[Orchestrator] Agent {agent.name} result: {result.messages[-1]['content']}")
+            print(f"[Orchestrator] Agent {agent_name} result: {result.messages[-1]['content']}")
             
     def get_user_feedback(self, step_name: str):
         """
@@ -468,9 +468,10 @@ class CentralOrchestrator:
                 )
 
                 # 에이전트 상태 및 결과 업데이트
-                for result, agent in zip(results, step_agents):
+                for result in results:
+                    agent_name = result.agent.name
                     state = "Completed" if result.messages else "Failed"
-                    self.update_agent_state_and_result(agent, state, result)
+                    self.update_agent_state_and_result(agent_name, state, result)
                         
                 # 사용자 입력 처리
                 user_decision = self.get_user_feedback(step_name)
@@ -547,3 +548,4 @@ class CentralOrchestrator:
     #                 break
 
     #     print("[Orchestrator] Workflow execution completed.")
+    
