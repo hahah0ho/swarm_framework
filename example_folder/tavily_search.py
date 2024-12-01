@@ -31,11 +31,18 @@ class TavilySearch:
 
 
 
-def search_on_web(query: str):
-    """Search `query` on the web(google, naver) and return the results"""
+def search_on_web_1(query: str):
     tavily_tool = TavilySearch(
         API_KEY=TAVILY_API_KEY,
-        domains=["google.com", "naver.com"],
+        domains=["google.com"],
         k=6,
+    )
+    return tavily_tool.search(query)
+
+def search_on_web_2(query: str):
+    tavily_tool = TavilySearch(
+        API_KEY=TAVILY_API_KEY,
+        domains=["naver.com"],
+        k=3,
     )
     return tavily_tool.search(query)
