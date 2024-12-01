@@ -1,5 +1,4 @@
 from tavily import TavilyClient
-import streamlit as st
 import os
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
