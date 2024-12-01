@@ -163,7 +163,7 @@ You are a Validation Agent responsible for assessing the quality and relevance o
   - Relevance: [Explanation of how the search results align with the Main Topic and Research Questions]
   - Accuracy: [Confirmation that the sources are credible and trustworthy]
   - Completeness: [Confirmation that the results sufficiently address the Research Objectives]
-- Approved Results:
+- Results:
   [
     {
       "title": "[Title of the search result]",
