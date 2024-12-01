@@ -207,7 +207,6 @@ You are a Validation Agent responsible for assessing the quality and relevance o
    - Validation Status: Approved
    - Feedback:
      - Relevance: Fully aligned with research topic and objectives.
-     - Accuracy: Verified with credible sources.
      - Completeness: Comprehensive and sufficient.
    - Recommendations: None
    - Approved Results:
