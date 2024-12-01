@@ -297,7 +297,8 @@ Please follow these steps to complete your task:
 5. Identify areas for improvement, considering factors such as clarity, structure, content, and overall effectiveness.
 6. List at least three specific suggestions for improving the report.
 7. Apply these improvements to create an enhanced version of the report.
-8. Translate the improved report into Korean.
+8. Expand the report to have MORE THAN 150 WORDS PER PARAGRAPH.
+9. Translate the improved report into Korean.
 
 Wrap your analysis inside <report_review> tags. In your analysis, consider the following questions:
 - What are the main strengths and weaknesses of the current draft?

@@ -43,12 +43,16 @@ def transfer_to_search_agent2():
     return search_agent2
 
 def get_writing_data():
+    research_objective = agent_results['objective_agent'].messages[-1]['content']
+    related_data1 = agent_results['validate_agent_1'].messages[-1]['content']
+    related_data2 = agent_results['validate_agent_2'].messages[-1]['content']
     result = {
-        "research_objective":agent_results['objective_agent'].messages[-1]['content'],
-        "related_data":agent_results['validate_agent_1'].messages[-1]['content'],
-        "related_data":agent_results['validate_agent_2'].messages[-1]['content']
+        "research_objective" : agent_results['objective_agent'].messages[-1]['content'],
+        "related_data1" : agent_results['validate_agent_1'].messages[-1]['content'],
+        "related_data2" : agent_results['validate_agent_2'].messages[-1]['content']
     }
     return result
+
 def transfer_to_writing_agent():
     """transfer to Writing Agent for writing report"""
     # 보고서 작성을 위해 Writing Agent로 전환
@@ -100,7 +104,7 @@ validate_agent_2 = Agent(
 writing_agent = Agent(
   name = "writing_agent",
   instructions=writing_prompt,
-  functions=[transfer_to_criticize_agent, get_writing_data()]
+  functions=[transfer_to_criticize_agent, get_writing_data]
 )
 
 criticize_agent = Agent(
@@ -117,7 +121,7 @@ workflow = [
     {"name": "Layer_3", "agents": ["writing_agent"], "dependent_on": ["objective_agent", "validate_agent1", "validate_agent2"], "description":"주어진 정보와 연구 목적을 바탕으로 보고서 혹은 논문을 작성해."}
 ]
 
-agents = [topic_agent, search_agent1, search_agent2]
+agents = [topic_agent, search_agent1, search_agent2, writing_agent]
 
 user_query = input()
 messages = [{"role":"user", "content":user_query}]
